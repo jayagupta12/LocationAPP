@@ -56,6 +56,9 @@ public class Result {
     @Expose
     private OpeningHours openingHours;
 
+
+
+
     public String getBusinessStatus() {
         return businessStatus;
     }

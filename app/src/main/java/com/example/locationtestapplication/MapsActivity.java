@@ -11,6 +11,8 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -32,12 +34,17 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.Gson;
+import com.squareup.picasso.Picasso;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -50,6 +57,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     Modal modal;
     double lat, lng;
     private GPSTracker gpsTracker;
+    ArrayList<Result> results;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,47 +78,59 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         recyclerView.addOnItemTouchListener(
                 new RecyclerItemClickListener(getApplicationContext(), new RecyclerItemClickListener.OnItemClickListener() {
                     @Override
-                    public void onItemClick(View view, int position) {
+                    public void onItemClick(View view, final int position) throws IOException {
                         Log.e("recyclerclick", "onItemClick: " + modal.getResults().get(position).getName());
 
 
                         final LatLng ltlng = new LatLng(modal.getResults().get(position).getGeometry().getLocation().getLat(), modal.getResults().get(position).getGeometry().getLocation().getLng());
-                        Marker marker = mMap.addMarker(
-                                new MarkerOptions()
-                                        .position(ltlng)
-                                        .title(modal.getResults().get(position).getName()).snippet(modal.getResults().get(position).getVicinity()));
-                        marker.showInfoWindow();
+                        MarkerOptions marker = new MarkerOptions();
+                        String url = modal.getResults().get(position).getIcon();
+                        //  Bitmap image = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                    /*    Bitmap image = Picasso.get()
+                                .load(url).get();*/
+
+                        marker.position(ltlng)
+                                .title(modal.getResults().get(position).getName()).snippet(modal.getResults().get(position).getVicinity());
+
+                        CustomInfoWindowAdapter adapter = new CustomInfoWindowAdapter(MapsActivity.this);
+                        mMap.setInfoWindowAdapter(adapter);
+
+                        mMap.addMarker(marker).showInfoWindow();
+
+
+                        //  marker.showInfoWindow();
                     }
                 })
         );
+
         try {
-            if (ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ) {
+            if (ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 101);
             }
             getLocation();
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
 
     }
-    public void getLocation(){
-        gpsTracker = new GPSTracker(MapsActivity.this);
-        if(gpsTracker.canGetLocation()){
-             lat = gpsTracker.getLatitude();
-             lng = gpsTracker.getLongitude();
 
-        }else{
+    public void getLocation() {
+        gpsTracker = new GPSTracker(MapsActivity.this);
+        if (gpsTracker.canGetLocation()) {
+            lat = gpsTracker.getLatitude();
+            lng = gpsTracker.getLongitude();
+
+        } else {
             gpsTracker.showSettingsAlert();
         }
     }
 
 
-
     private void callMapApi(String type, double lat, double lng) {
 
         // add api key here also
-        String Url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=[API_KEY]&location="+lat+","+lng+"&radius=5000&type=" + type;
+        String Url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyC9W-UQInRyvJV66e3sRrkmk6S0ZJLkfiY&location=" + lat + "," + lng + "&radius=5000&type=" + type;
         RequestQueue requestQueue = Volley.newRequestQueue(this);
         StringRequest stringRequest = new StringRequest(Request.Method.GET, Url, new Response.Listener<String>() {
             @Override
@@ -120,12 +140,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 modal = gson.fromJson(response.toString(), Modal.class);
 
                 if (modal.getStatus().equals("OK")) {
-                    ArrayList<Result> results = new ArrayList<>();
+                    results = new ArrayList<>();
                     for (int i = 0; i < modal.getResults().size(); i++) {
 
                         results.add(modal.getResults().get(i));
                     }
-                    callAdapter(results);
+                    callAdapter(results, "");
                 }
             }
         }, new Response.ErrorListener() {
@@ -138,8 +158,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private void callAdapter(ArrayList<Result> results) {
-        DataAdapter dealsAdapter = new DataAdapter(MapsActivity.this, results);
+    private void callAdapter(ArrayList<Result> results, String title) {
+        DataAdapter dealsAdapter = new DataAdapter(MapsActivity.this, results, title);
         recyclerView.setAdapter(dealsAdapter);
         recyclerView.setHasFixedSize(true);
         recyclerView.setLayoutManager(new LinearLayoutManager(MapsActivity.this, LinearLayoutManager.HORIZONTAL, false));
@@ -160,6 +180,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         CameraPosition position = new CameraPosition.Builder().
                 target(myPosition).zoom(10).bearing(19).tilt(30).build();
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(position));
+
+        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+
+                String title = marker.getTitle();
+                String position = marker.getId();
+                Log.e("value", "onInfoWindowClick: " + position);
+                Log.e("click", "onInfoWindowClick: " + results);
+                callAdapter(results, title);
+            }
+        });
     }
 
     private void showAlertDialog() {

@@ -8,11 +8,14 @@ import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+
 class RecyclerItemClickListener implements RecyclerView.OnItemTouchListener {
     private OnItemClickListener mListener;
 
     public interface OnItemClickListener {
-        public void onItemClick(View view, int position);
+        public void onItemClick(View view, int position) throws IOException;
     }
 
     GestureDetector mGestureDetector;
@@ -31,7 +34,11 @@ class RecyclerItemClickListener implements RecyclerView.OnItemTouchListener {
     public boolean onInterceptTouchEvent(RecyclerView view, MotionEvent e) {
         View childView = view.findChildViewUnder(e.getX(), e.getY());
         if (childView != null && mListener != null && mGestureDetector.onTouchEvent(e)) {
-            mListener.onItemClick(childView, view.getChildAdapterPosition(childView));
+            try {
+                mListener.onItemClick(childView, view.getChildAdapterPosition(childView));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
         }
         return false;
     }
