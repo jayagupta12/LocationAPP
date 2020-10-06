@@ -130,7 +130,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void callMapApi(String type, double lat, double lng) {
 
         // add api key here also
-        String Url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyC9W-UQInRyvJV66e3sRrkmk6S0ZJLkfiY&location=" + lat + "," + lng + "&radius=5000&type=" + type;
+        String Url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=[YourKEY]&location=" + lat + "," + lng + "&radius=5000&type=" + type;
         RequestQueue requestQueue = Volley.newRequestQueue(this);
         StringRequest stringRequest = new StringRequest(Request.Method.GET, Url, new Response.Listener<String>() {
             @Override
